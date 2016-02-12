@@ -1,57 +1,46 @@
-package ico
+package ico_test
 
 import (
-	"bytes"
 	"fmt"
 	"image/jpeg"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-)
-
-const (
-	testICO = "testdata/wiki.ico"
-	testPNG = "testdata/wiki.png"
+	"github.com/zyxar/image2ascii/ico"
 )
 
 func TestDecodeAll(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	files, _ := filepath.Glob("testdata/favicons/*.ico")
-	for i, f := range files {
-		fmt.Println()
-		fmt.Println(i, "WORKING WITH", f)
-		fmt.Println()
-		icoData, err := ioutil.ReadFile(f)
+	for _, f := range files {
+		rd, err := os.Open(f)
 		assert.NoError(err, f)
-
-		r := bytes.NewReader(icoData)
-		ic, err := DecodeAll(r)
+		images, err := ico.DecodeAll(rd)
 		assert.NoError(err, f)
+		rd.Close()
 		if err != nil {
 			continue
 		}
 
-		for i, im := range ic.Image {
-			var jpgName string
-			if len(ic.Image) == 1 {
-				jpgName = f + ".jpg"
+		for i, _ := range images {
+			var dst string
+			if len(images) == 1 {
+				dst = f + ".jpg"
 			} else {
-				jpgName = f + fmt.Sprintf("-%d.jpg", i)
+				dst = f + fmt.Sprintf("-%d.jpg", i)
 			}
-			jpgData, err := ioutil.ReadFile(jpgName)
-			assert.NoError(err, jpgName)
-
-			r = bytes.NewReader(jpgData)
-			jpgImage, err := jpeg.Decode(r)
-			assert.NoError(err, jpgName)
+			rd, err := os.Open(dst)
+			assert.NoError(err, dst)
+			dstImage, err := jpeg.Decode(rd)
+			assert.NoError(err, dst)
+			rd.Close()
 			if err != nil {
 				continue
 			}
-
-			assert.Equal(im.Bounds(), jpgImage.Bounds())
+			assert.Equal(images[i].Bounds(), dstImage.Bounds())
 		}
 	}
 }
